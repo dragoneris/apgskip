@@ -67,7 +67,9 @@ class APGControlScript(scripts.Script):
                     value="None",
                     interactive=True,
                 )
-            with gr.Row(visible=True) as steps_count_row:
+            with gr.Row(visible=True) as none_row:
+                pass
+            with gr.Row(visible=False) as steps_count_row:
                 apg_off_steps = gr.Slider(
                     minimum=1,
                     maximum=150,
@@ -91,6 +93,18 @@ class APGControlScript(scripts.Script):
                     value="",
                     interactive=True,
                 )
+            def update_visibility(apg_type):
+                return [
+                    gr.update(visible=(apg_type == "Disable for N Steps")),
+                    gr.update(visible=(apg_type == "Disable for N% of Steps")),
+                    gr.update(visible=(apg_type == "Disable on Specific Steps")),
+                ]
+
+            apg_off_type.change(
+                fn=update_visibility,
+                inputs=apg_off_type,
+                outputs=[none_row, steps_count_row, steps_percent_row, steps_specific_row],
+            )
         return (apg_enabled, apg_momentum, apg_adaptive_momentum, apg_norm_thr, apg_eta,
                 apg_off_type, apg_off_steps, apg_off_percent, apg_off_specific_steps)
 
