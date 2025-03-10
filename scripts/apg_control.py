@@ -166,12 +166,13 @@ class APG_ImYourCFGNow:
 
             # Check if APG should be turned off based on the selected method
             if apg_off_type == "Disable for N Steps" and current_step < apg_off_steps:
-                print("Test")
+                extras[7] = current_step + 1
                 return cond
             elif apg_off_type == "Disable on Specific Steps":
                 try:
                     specific_steps = [int(s.strip()) for s in apg_off_specific_steps.split(",") if s.strip().isdigit()]
                     if current_step in specific_steps:
+                        extras[7] = current_step + 1
                         return cond
                 except ValueError:
                     print(f"Invalid format for specific steps: {apg_off_specific_steps}")
@@ -200,10 +201,10 @@ class APG_ImYourCFGNow:
             if print_data:
                 print(" momentum: ", momentum_buffer.momentum, " t: ", t)
 
+            extras[7] = current_step + 1
             return normalized_guidance(
                 cond, uncond, cond_scale, momentum_buffer, eta, norm_threshold
             )
-            extras[7] = current_step + 1
 
         m = model.clone()
         m.set_model_sampler_cfg_function(apg_function, extras==extras)
