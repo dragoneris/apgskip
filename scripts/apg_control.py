@@ -219,6 +219,10 @@ class APGControlScript(scripts.Script):
         self.apg_adaptive_moment = 0.180
         self.apg_norm_thr = 15.0
         self.apg_eta = 1.0
+        self.apg_off_type = "None"
+        self.apg_off_steps = 0
+        self.apg_off_specific_steps = ""
+
 
 
 
