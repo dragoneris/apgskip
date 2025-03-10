@@ -1,13 +1,14 @@
 import gradio as gr
 from modules import scripts, shared
-from modules.processing import Processed, process_images, StableDiffusionProcessing
-from modules.sd_samplers import samplers_for_img2img
+from modules.processing import StableDiffusionProcessing
 import math
 
 class CFGControlScript(scripts.Script):
     def __init__(self):
         super().__init__()
         self.current_cfg_function = None
+        self.original_cfg_scale = None
+        self.current_step = 0
 
     def title(self):
         return "CFG Control"
@@ -75,15 +76,24 @@ class CFGControlScript(scripts.Script):
             self.current_cfg_function = self.create_cfg_function_for_specific_steps(p.cfg_scale, cfg_off_specific_steps)
         else:
             self.current_cfg_function = None
-        
+
         self.original_cfg_scale = p.cfg_scale
+        self.current_step = 0
+
+    def before_hr(self, p: StableDiffusionProcessing, *args):
+        self.current_step = 0
+        if self.current_cfg_function is not None:
+            p.cfg_scale = self.current_cfg_function(self.current_step)
 
     def process_batch(self, p: StableDiffusionProcessing, batch_number, prompts, seeds, subseeds):
+        pass
+
+    def process_step(self, p, *args):
         if self.current_cfg_function is not None:
-            p.cfg_scale = self.current_cfg_function(p.state.sampling_step)
+            p.cfg_scale = self.current_cfg_function(self.current_step)
         else:
             p.cfg_scale = self.original_cfg_scale
-
+        self.current_step += 1
 
     def create_cfg_function_for_n_steps(self, original_cfg, steps_to_disable, cfg_off_zero_start):
         def cfg_function(x):
