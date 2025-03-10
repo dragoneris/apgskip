@@ -95,6 +95,7 @@ class APGControlScript(scripts.Script):
                 )
             def update_visibility(apg_type):
                 return [
+                    gr.update(visible=(apg_type == "None")),
                     gr.update(visible=(apg_type == "Disable for N Steps")),
                     gr.update(visible=(apg_type == "Disable for N% of Steps")),
                     gr.update(visible=(apg_type == "Disable on Specific Steps")),
