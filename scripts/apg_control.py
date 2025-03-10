@@ -162,8 +162,6 @@ class APG_ImYourCFGNow:
             apg_off_specific_steps = extras[6]
             current_step = extras[7]
             
-            total_steps = shared.opts.data["txt2img_steps"]
-            
             t = model.model_sampling.timestep(sigma)[0].item()
 
             if (
@@ -192,8 +190,6 @@ class APG_ImYourCFGNow:
             
             # Check if APG should be turned off based on the selected method
             if apg_off_type == "Disable for N Steps" and current_step < apg_off_steps:
-                return cond
-            elif apg_off_type == "Disable for N% of Steps" and current_step < (total_steps * (apg_off_percent / 100)):
                 return cond
             elif apg_off_type == "Disable on Specific Steps":
                 try:
@@ -270,7 +266,7 @@ class APGControlScript(scripts.Script):
                 )
             with gr.Row():
                 apg_off_type = gr.Radio(
-                    ["None", "Disable for N Steps", "Disable for N% of Steps", "Disable on Specific Steps"],
+                    ["None", "Disable for N Steps", "Disable on Specific Steps"],
                     label="APG Disable Type",
                     value="None",
                     interactive=True,
@@ -286,15 +282,6 @@ class APGControlScript(scripts.Script):
                     label="Number of Steps to Disable APG",
                     interactive=True,
                 )
-            with gr.Row(visible=False) as steps_percent_row:
-                apg_off_percent = gr.Slider(
-                    minimum=0,
-                    maximum=100,
-                    step=1,
-                    value=0,
-                    label="Percentage of Steps to Disable APG",
-                    interactive=True,
-                )
             with gr.Row(visible=False) as steps_specific_row:
                 apg_off_specific_steps = gr.Textbox(
                     label="Specific Steps to Disable APG (comma-separated)",
@@ -305,20 +292,19 @@ class APGControlScript(scripts.Script):
                 return [
                     gr.update(visible=(apg_type == "None")),
                     gr.update(visible=(apg_type == "Disable for N Steps")),
-                    gr.update(visible=(apg_type == "Disable for N% of Steps")),
                     gr.update(visible=(apg_type == "Disable on Specific Steps")),
                 ]
 
             apg_off_type.change(
                 fn=update_visibility,
                 inputs=apg_off_type,
-                outputs=[none_row, steps_count_row, steps_percent_row, steps_specific_row],
+                outputs=[none_row, steps_count_row, steps_specific_row],
             )
         return (apg_enabled, apg_momentum, apg_adaptive_momentum, apg_norm_thr, apg_eta,
-                apg_off_type, apg_off_steps, apg_off_percent, apg_off_specific_steps)
+                apg_off_type, apg_off_steps, apg_off_specific_steps)
 
     def process_before_every_sampling(self, p, *args, **kwargs):
-        if len(args) >= 9:
+        if len(args) >= 8:
             (
                 self.apg_enabled,
                 self.apg_moment,
@@ -327,9 +313,8 @@ class APGControlScript(scripts.Script):
                 self.apg_eta,
                 self.apg_off_type,
                 self.apg_off_steps,
-                self.apg_off_percent,
                 self.apg_off_specific_steps,
-            ) = args[:9]
+            ) = args[:8]
         else:
             logging.warning(
                 "Not enough arguments provided to process_before_every_sampling"
@@ -352,8 +337,6 @@ class APGControlScript(scripts.Script):
             self.apg_off_type = xyz["apg_off_type"]
         if "apg_off_steps" in xyz:
             self.apg_off_steps = xyz["apg_off_steps"]
-        if "apg_off_percent" in xyz:
-            self.apg_off_percent = xyz["apg_off_percent"]
         if "apg_off_specific_steps" in xyz:
             self.apg_off_specific_steps = xyz["apg_off_specific_steps"]
 
