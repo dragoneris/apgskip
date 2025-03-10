@@ -164,6 +164,19 @@ class APG_ImYourCFGNow:
             
             t = model.model_sampling.timestep(sigma)[0].item()
 
+            # Check if APG should be turned off based on the selected method
+            if apg_off_type == "Disable for N Steps" and current_step < apg_off_steps:
+                print("Test")
+                return cond
+            elif apg_off_type == "Disable on Specific Steps":
+                try:
+                    specific_steps = [int(s.strip()) for s in apg_off_specific_steps.split(",") if s.strip().isdigit()]
+                    if current_step in specific_steps:
+                        return cond
+                except ValueError:
+                    print(f"Invalid format for specific steps: {apg_off_specific_steps}")
+                    pass # handle it gracefully, possibly ignore it
+
             if (
                 torch.is_tensor(momentum_buffer.running_average)
                 and (cond.shape[3] != momentum_buffer.running_average.shape[3])
@@ -186,19 +199,6 @@ class APG_ImYourCFGNow:
 
             if print_data:
                 print(" momentum: ", momentum_buffer.momentum, " t: ", t)
-
-            
-            # Check if APG should be turned off based on the selected method
-            if apg_off_type == "Disable for N Steps" and current_step < apg_off_steps:
-                return cond
-            elif apg_off_type == "Disable on Specific Steps":
-                try:
-                    specific_steps = [int(s.strip()) for s in apg_off_specific_steps.split(",") if s.strip().isdigit()]
-                    if current_step in specific_steps:
-                        return cond
-                except ValueError:
-                    print(f"Invalid format for specific steps: {apg_off_specific_steps}")
-                    pass # handle it gracefully, possibly ignore it
 
             return normalized_guidance(
                 cond, uncond, cond_scale, momentum_buffer, eta, norm_threshold
