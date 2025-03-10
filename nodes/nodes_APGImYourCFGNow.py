@@ -148,16 +148,11 @@ class APG_ImYourCFGNow:
             step = args["step"]
             total_steps = args["total_steps"]
 
-            if guidance_limiter:
-                if (guidance_sigma_start >= 0 and sigma[0] >  guidance_sigma_start) or (guidance_sigma_end   >= 0 and sigma[0] <= guidance_sigma_end):
-                    if print_data:
-                        print(f" guidance limiter active (sigma: {sigma[0]})")
-                    return uncond + (cond - uncond)
-
             momentum_buffer = extras[0]
             momentum = extras[1]
             adaptive_momentum = extras[2]
             apg_off_type = extras[3]
+            print(apg_off_type)
             apg_off_steps = extras[4]
             apg_off_percent = extras[5]
             apg_off_specific_steps = extras[6]
