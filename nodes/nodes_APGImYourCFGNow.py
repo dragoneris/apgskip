@@ -190,10 +190,13 @@ class APG_ImYourCFGNow:
             
             # Check if APG should be turned off based on the selected method
             if apg_off_type == "Disable for N Steps" and step < apg_off_steps:
+                print("Test")
                 return cond
             elif apg_off_type == "Disable for N% of Steps" and step < (total_steps * (apg_off_percent / 100)):
+                print("Test2")
                 return cond
             elif apg_off_type == "Disable on Specific Steps":
+                print("Test3")
                 try:
                     specific_steps = [int(s.strip()) for s in apg_off_specific_steps.split(",") if s.strip().isdigit()]
                     if step in specific_steps:
