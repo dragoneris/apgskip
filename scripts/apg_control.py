@@ -5,7 +5,7 @@ from typing import Any
 from functools import partial
 import gradio as gr
 from modules import script_callbacks, scripts
-from .nodes_APGImYourCFGNow import APG_ImYourCFGNow
+from cfgskip.nodes_APGImYourCFGNow import APG_ImYourCFGNow
 
 class APGControlScript(scripts.Script):
     def __init__(self):
