@@ -1,12 +1,13 @@
 import gradio as gr
 from modules import scripts, shared
-from modules.processing import Processed, process_images
+from modules.processing import Processed, process_images, StableDiffusionProcessing
 from modules.sd_samplers import samplers_for_img2img
 import math
 
 class CFGControlScript(scripts.Script):
     def __init__(self):
         super().__init__()
+        self.current_cfg_function = None
 
     def title(self):
         return "CFG Control"
@@ -65,50 +66,56 @@ class CFGControlScript(scripts.Script):
 
         return [cfg_off_type, cfg_off_steps, cfg_off_percent, cfg_off_specific_steps, cfg_off_zero_start]
 
-    def process(self, p, cfg_off_type, cfg_off_steps, cfg_off_percent, cfg_off_specific_steps, cfg_off_zero_start):
+    def process(self, p: StableDiffusionProcessing, cfg_off_type, cfg_off_steps, cfg_off_percent, cfg_off_specific_steps, cfg_off_zero_start):
         if cfg_off_type == "Disable for N Steps" and cfg_off_steps > 0:
-            self.disable_cfg_for_n_steps(p, cfg_off_steps, cfg_off_zero_start)
+            self.current_cfg_function = self.create_cfg_function_for_n_steps(p.cfg_scale, cfg_off_steps, cfg_off_zero_start)
         elif cfg_off_type == "Disable for N% of Steps" and cfg_off_percent > 0:
-            self.disable_cfg_for_n_percent(p, cfg_off_percent, cfg_off_zero_start)
+            self.current_cfg_function = self.create_cfg_function_for_n_percent(p.cfg_scale, p.steps, cfg_off_percent, cfg_off_zero_start)
         elif cfg_off_type == "Disable on Specific Steps" and cfg_off_specific_steps:
-            self.disable_cfg_on_specific_steps(p, cfg_off_specific_steps)
+            self.current_cfg_function = self.create_cfg_function_for_specific_steps(p.cfg_scale, cfg_off_specific_steps)
+        else:
+            self.current_cfg_function = None
+        
+        self.original_cfg_scale = p.cfg_scale
 
-    def disable_cfg_for_n_steps(self, p, steps_to_disable, cfg_off_zero_start):
-        original_cfg = p.cfg_scale
+    def process_batch(self, p: StableDiffusionProcessing, batch_number, prompts, seeds, subseeds):
+        if self.current_cfg_function is not None:
+            p.cfg_scale = self.current_cfg_function(p.state.sampling_step)
+        else:
+            p.cfg_scale = self.original_cfg_scale
 
-        def custom_cfg_function(x):
-            if cfg_off_zero_start and x==0:
+
+    def create_cfg_function_for_n_steps(self, original_cfg, steps_to_disable, cfg_off_zero_start):
+        def cfg_function(x):
+            if cfg_off_zero_start and x == 0:
                 return 0
             elif x < steps_to_disable:
                 return 0
             else:
                 return original_cfg
-        p.cfg_scale = custom_cfg_function
+        return cfg_function
 
-    def disable_cfg_for_n_percent(self, p, percent_to_disable, cfg_off_zero_start):
-        original_cfg = p.cfg_scale
-        steps_to_disable = math.ceil(p.steps * (percent_to_disable / 100))
-
-        def custom_cfg_function(x):
-            if cfg_off_zero_start and x==0:
+    def create_cfg_function_for_n_percent(self, original_cfg, total_steps, percent_to_disable, cfg_off_zero_start):
+        steps_to_disable = math.ceil(total_steps * (percent_to_disable / 100))
+        def cfg_function(x):
+            if cfg_off_zero_start and x == 0:
                 return 0
             elif x < steps_to_disable:
                 return 0
             else:
                 return original_cfg
-        p.cfg_scale = custom_cfg_function
+        return cfg_function
 
-    def disable_cfg_on_specific_steps(self, p, specific_steps_string):
-        original_cfg = p.cfg_scale
+    def create_cfg_function_for_specific_steps(self, original_cfg, specific_steps_string):
         try:
             specific_steps = [int(s.strip()) for s in specific_steps_string.split(",")]
         except ValueError:
             print("CFG Control: Invalid specific steps format. Using original CFG.")
-            return
+            return lambda x: original_cfg  # Return a function that always returns the original CFG
 
-        def custom_cfg_function(x):
+        def cfg_function(x):
             if x in specific_steps:
                 return 0
             else:
                 return original_cfg
-        p.cfg_scale = custom_cfg_function
+        return cfg_function
