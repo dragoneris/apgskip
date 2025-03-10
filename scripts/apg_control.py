@@ -4,7 +4,7 @@ import traceback
 from typing import Any
 from functools import partial
 import gradio as gr
-from modules import script_callbacks, scripts
+from modules import script_callbacks, scripts, shared
 from ldm_patched.modules.model_patcher import ModelPatcher
 import torch
 
@@ -143,7 +143,8 @@ class APG_ImYourCFGNow:
         extras=[],
     ):
         momentum_buffer = MomentumBuffer(momentum)
-        extras = [momentum_buffer, momentum, adaptive_momentum, apg_off_type, apg_off_steps, apg_off_percent, apg_off_specific_steps]
+        current_step = 0
+        extras = [momentum_buffer, momentum, adaptive_momentum, apg_off_type, apg_off_steps, apg_off_percent, apg_off_specific_steps, current_step]
 
         def apg_function(args):
             cond = args["cond"]
@@ -151,18 +152,18 @@ class APG_ImYourCFGNow:
             sigma = args["sigma"]
             model = args["model"]
             cond_scale = args["cond_scale"]
-            step = args["step"]
-            total_steps = args["total_steps"]
 
             momentum_buffer = extras[0]
             momentum = extras[1]
             adaptive_momentum = extras[2]
             apg_off_type = extras[3]
-            print(apg_off_type)
             apg_off_steps = extras[4]
             apg_off_percent = extras[5]
             apg_off_specific_steps = extras[6]
-
+            current_step = extras[7]
+            
+            total_steps = shared.opts.data["txt2img_steps"]
+            
             t = model.model_sampling.timestep(sigma)[0].item()
 
             if (
@@ -190,14 +191,14 @@ class APG_ImYourCFGNow:
 
             
             # Check if APG should be turned off based on the selected method
-            if apg_off_type == "Disable for N Steps" and step < apg_off_steps:
+            if apg_off_type == "Disable for N Steps" and current_step < apg_off_steps:
                 return cond
-            elif apg_off_type == "Disable for N% of Steps" and step < (total_steps * (apg_off_percent / 100)):
+            elif apg_off_type == "Disable for N% of Steps" and current_step < (total_steps * (apg_off_percent / 100)):
                 return cond
             elif apg_off_type == "Disable on Specific Steps":
                 try:
                     specific_steps = [int(s.strip()) for s in apg_off_specific_steps.split(",") if s.strip().isdigit()]
-                    if step in specific_steps:
+                    if current_step in specific_steps:
                         return cond
                 except ValueError:
                     print(f"Invalid format for specific steps: {apg_off_specific_steps}")
@@ -206,17 +207,13 @@ class APG_ImYourCFGNow:
             return normalized_guidance(
                 cond, uncond, cond_scale, momentum_buffer, eta, norm_threshold
             )
+            extras[7] = current_step + 1
 
         m = model.clone()
         m.set_model_sampler_cfg_function(apg_function, extras==extras)
         m.model_options["disable_cfg1_optimization"] = False
 
         return (m,)
-
-
-NODE_CLASS_MAPPINGS = {
-    "APG_ImYourCFGNow": APG_ImYourCFGNow,
-}
 
 class APGControlScript(scripts.Script):
     def __init__(self):
