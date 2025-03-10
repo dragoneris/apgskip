@@ -366,7 +366,6 @@ class APGControlScript(scripts.Script):
             # APG control parameters
             "apg_off_type": self.apg_off_type if self.apg_enabled else "None",
             "apg_off_steps": self.apg_off_steps if self.apg_enabled else 0,
-            "apg_off_percent": self.apg_off_percent if self.apg_enabled else 0,
             "apg_off_specific_steps": self.apg_off_specific_steps if self.apg_enabled else 0,
         }
 
