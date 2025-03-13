@@ -172,7 +172,6 @@ class APG_ImYourCFGNow:
                 match skip_mode:
                     case "cond": return cond
                     case "uncond": return uncond
-                    case "cond-uncond": return cond - uncond
                 return cond 
             elif apg_off_type == "Disable on Specific Steps":
                 try:
@@ -182,7 +181,6 @@ class APG_ImYourCFGNow:
                         match skip_mode:
                             case "cond": return cond
                             case "uncond": return uncond
-                            case "cond-uncond": return cond - uncond
                         return cond
                 except ValueError:
                     print(f"Invalid format for specific steps: {apg_off_specific_steps}")
@@ -289,7 +287,7 @@ class APGControlScript(scripts.Script):
                 )
             with gr.Row():
                 skip_mode = gr.Radio(
-                    ["cond", "uncond", "cond-uncond"],
+                    ["cond", "uncond"],
                     label="Skip Mode",
                     value="None",
                     interactive=True,
