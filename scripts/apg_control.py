@@ -139,12 +139,13 @@ class APG_ImYourCFGNow:
         apg_off_steps: int = 0,
         apg_off_percent: int = 0,
         apg_off_specific_steps: str = "",
+        skip_mode: str = "cond",
         print_data=False,
         extras=[],
     ):
         momentum_buffer = MomentumBuffer(momentum)
         current_step = 0
-        extras = [momentum_buffer, momentum, adaptive_momentum, apg_off_type, apg_off_steps, apg_off_percent, apg_off_specific_steps, current_step]
+        extras = [momentum_buffer, momentum, adaptive_momentum, apg_off_type, apg_off_steps, apg_off_percent, apg_off_specific_steps, current_step, skip_mode]
 
         def apg_function(args):
             cond = args["cond"]
@@ -161,18 +162,27 @@ class APG_ImYourCFGNow:
             apg_off_percent = extras[5]
             apg_off_specific_steps = extras[6]
             current_step = extras[7]
+            skip_mode = extras[8]
             
             t = model.model_sampling.timestep(sigma)[0].item()
 
             # Check if APG should be turned off based on the selected method
             if apg_off_type == "Disable for N Steps" and current_step < apg_off_steps:
                 extras[7] = current_step + 1
-                return cond
+                match skip_mode:
+                    case "cond": return cond
+                    case "uncond": return uncond
+                    case "cfg": return cond + (cond_scale * uncond)
+                return cond 
             elif apg_off_type == "Disable on Specific Steps":
                 try:
                     specific_steps = [int(s.strip()) for s in apg_off_specific_steps.split(",") if s.strip().isdigit()]
                     if current_step in specific_steps:
                         extras[7] = current_step + 1
+                        match skip_mode:
+                            case "cond": return cond
+                            case "uncond": return uncond
+                            case "cfg": return cond + (cond_scale * uncond)
                         return cond
                 except ValueError:
                     print(f"Invalid format for specific steps: {apg_off_specific_steps}")
@@ -223,6 +233,7 @@ class APGControlScript(scripts.Script):
         self.apg_off_type = "None"
         self.apg_off_steps = 0
         self.apg_off_specific_steps = ""
+        self.skip_mode = "cond"
 
 
 
@@ -276,6 +287,13 @@ class APGControlScript(scripts.Script):
                     value="None",
                     interactive=True,
                 )
+            with gr.Row():
+                skip_mode = gr.Radio(
+                    ["cond", "uncond", "cfg"],
+                    label="Skip Mode",
+                    value="None",
+                    interactive=True,
+                )
             with gr.Row(visible=True) as none_row:
                 pass
             with gr.Row(visible=False) as steps_count_row:
@@ -306,10 +324,10 @@ class APGControlScript(scripts.Script):
                 outputs=[none_row, steps_count_row, steps_specific_row],
             )
         return (apg_enabled, apg_momentum, apg_adaptive_momentum, apg_norm_thr, apg_eta,
-                apg_off_type, apg_off_steps, apg_off_specific_steps)
+                apg_off_type, apg_off_steps, apg_off_specific_steps, skip_mode)
 
     def process_before_every_sampling(self, p, *args, **kwargs):
-        if len(args) >= 8:
+        if len(args) >= 9:
             (
                 self.apg_enabled,
                 self.apg_moment,
@@ -319,7 +337,8 @@ class APGControlScript(scripts.Script):
                 self.apg_off_type,
                 self.apg_off_steps,
                 self.apg_off_specific_steps,
-            ) = args[:8]
+                self.skip_mode
+            ) = args[:9]
         else:
             logging.warning(
                 "Not enough arguments provided to process_before_every_sampling"
@@ -344,6 +363,8 @@ class APGControlScript(scripts.Script):
             self.apg_off_steps = xyz["apg_off_steps"]
         if "apg_off_specific_steps" in xyz:
             self.apg_off_specific_steps = xyz["apg_off_specific_steps"]
+        if "skip_mode" in xyz:
+            self.skip_mode = xyz["skip_mode"]
 
         # Always start with a fresh clone of the original unet
         unet = p.sd_model.forge_objects.unet.clone()
@@ -368,6 +389,7 @@ class APGControlScript(scripts.Script):
             "apg_off_type": self.apg_off_type if self.apg_enabled else "None",
             "apg_off_steps": self.apg_off_steps if self.apg_enabled else 0,
             "apg_off_specific_steps": self.apg_off_specific_steps if self.apg_enabled else 0,
+            "skip_mode": self.skip_mode if self.apg_enabled else "cond",
         }
 
         unet = APG_ImYourCFGNow().patch(unet, **patch_params)[0]
