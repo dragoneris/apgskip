@@ -289,7 +289,7 @@ class APGControlScript(scripts.Script):
                 )
             with gr.Row():
                 skip_mode = gr.Radio(
-                    ["cond", "uncond", "cfg"],
+                    ["cond", "uncond", "cond-uncond"],
                     label="Skip Mode",
                     value="None",
                     interactive=True,
