@@ -289,7 +289,7 @@ class APGControlScript(scripts.Script):
                 skip_mode = gr.Radio(
                     ["cond", "uncond"],
                     label="Skip Mode",
-                    value="None",
+                    value="cond",
                     interactive=True,
                 )
             with gr.Row(visible=True) as none_row:
@@ -478,6 +478,7 @@ def make_axis_on_xyz_grid():
             "(APG) APG Disable Type",
             str,
             partial(set_value, field="apg_off_type"),
+            choices=lambda: ["None", "Disable for N Steps", "Disable on Specific Steps"]
         ),
         xyz_grid.AxisOption(
             "(APG) APG Disable Steps",
@@ -494,6 +495,12 @@ def make_axis_on_xyz_grid():
             str,
             partial(set_value, field="apg_off_specific_steps"),
         ),
+        xyz_grid.AxisOption(
+            "(APG) Skip Mode",
+            str,
+            partial(set_value, field="skip_mode"),
+            choices=lambda: ["cond", "uncond"]
+),
     ]
 
     if not any(x.label.startswith("(APG)") for x in xyz_grid.axis_options):
